@@ -15,7 +15,10 @@ from hymm_sp.data_kits.data_tools import save_videos_grid
 from hymm_sp.config import parse_args
 import argparse
 
-os.environ["MODEL_BASE"] = "weights/stdmodels"
+# Get weights path from environment variable or use default
+WEIGHTS_PATH = os.environ.get("WEIGHTS_PATH", "/data/weights")
+
+os.environ["MODEL_BASE"] = os.path.join(WEIGHTS_PATH, "stdmodels")
 os.environ["DISABLE_SP"] = "1"
 os.environ["CPU_OFFLOAD"] = "1"
 
@@ -42,7 +45,7 @@ class CropResize:
 
 def create_args():
     args = argparse.Namespace()
-    args.ckpt = "weights/gamecraft_models/mp_rank_00_model_states_distill.pt"
+    args.ckpt = os.path.join(WEIGHTS_PATH, "gamecraft_models/mp_rank_00_model_states_distill.pt")
     args.video_size = [704, 1216]
     args.cfg_scale = 1.0
     args.image_start = True
@@ -65,13 +68,14 @@ def create_args():
 
 logger.info("Initializing Hunyuan-GameCraft model...")
 
-if not os.path.exists("weights/gamecraft_models/mp_rank_00_model_states_distill.pt"):
+model_path = os.path.join(WEIGHTS_PATH, "gamecraft_models/mp_rank_00_model_states_distill.pt")
+if not os.path.exists(model_path):
     logger.info("Downloading model weights from Hugging Face...")
-    os.makedirs("weights/gamecraft_models", exist_ok=True)
+    os.makedirs(os.path.join(WEIGHTS_PATH, "gamecraft_models"), exist_ok=True)
     hf_hub_download(
         repo_id="tencent/Hunyuan-GameCraft-1.0",
         filename="gamecraft_models/mp_rank_00_model_states_distill.pt",
-        local_dir="weights/",
+        local_dir=WEIGHTS_PATH,
         local_dir_use_symlinks=False
     )
 
