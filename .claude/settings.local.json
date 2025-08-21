@@ -12,7 +12,8 @@
       "Bash(GIT_TRACE=1 git push origin main -f)",
       "Bash(git rev-list:*)",
       "Bash(git checkout:*)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

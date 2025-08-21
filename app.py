@@ -64,6 +64,26 @@ def create_args():
     args.save_path_suffix = ''
     args.add_pos_prompt = "Realistic, High-quality."
     args.add_neg_prompt = "overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, text, subtitles, static, picture, black border."
+    args.model = "HYVideo-T/2"
+    args.precision = "bf16"
+    args.vae = "884-16c-hy0801"
+    args.vae_precision = "fp16"
+    args.text_encoder = "llava-llama-3-8b"
+    args.text_encoder_precision = "fp16"
+    args.text_encoder_precision_2 = "fp16"
+    args.tokenizer = "llava-llama-3-8b"
+    args.text_encoder_2 = "clipL"
+    args.tokenizer_2 = "clipL"
+    args.latent_channels = 16
+    args.text_len = 256
+    args.text_len_2 = 77
+    args.use_attention_mask = True
+    args.hidden_state_skip_layer = 2
+    args.apply_final_norm = False
+    args.prompt_template_video = "li-dit-encode-video"
+    args.reproduce = False
+    args.load_key = "module"
+    
     return args
 
 logger.info("Initializing Hunyuan-GameCraft model...")
