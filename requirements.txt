@@ -39,9 +39,19 @@ networkx==3.3
 ninja==1.11.1.4
 numpy==2.1.2
 nvidia-ml-py==12.575.51
-nvidia-nccl-cu12==2.21.5
-nvidia-nvjitlink-cu12==12.4.127
-nvidia-nvtx-cu12==12.4.127
+
+# for Torch 2.8.0, we need to use the 2.27.3
+nvidia-nccl-cu12==2.27.3
+#nvidia-nccl-cu12==2.21.5
+
+# The user requested nvidia-nvjitlink-cu12==12.4.127
+# torch 2.8.0 depends on nvidia-nvjitlink-cu12==12.8.93
+nvidia-nvjitlink-cu12==12.8.93
+
+# The user requested nvidia-nvtx-cu12==12.4.127
+# torch 2.8.0 depends on nvidia-nvtx-cu12==12.8.90
+nvidia-nvtx-cu12==12.8.90
+
 nvitop==1.5.2
 opencv-python-headless==4.12.0.88
 packaging==25.0
@@ -59,11 +69,15 @@ safetensors==0.5.3
 sentencepiece==0.2.0
 setuptools==78.1.1
 six==1.17.0
-sympy==1.13.1
+sympy==1.13.3
 tokenizers==0.21.4
 tqdm==4.67.1
 transformers==4.54.1
-triton==3.1.0
+
+# The user requested triton==3.1.0
+# torch 2.8.0 depends on triton==3.4.0
+triton==3.4.0
+
 typing_extensions==4.12.2
 tzdata==2025.2
 urllib3==2.5.0
