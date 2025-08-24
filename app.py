@@ -84,6 +84,11 @@ def create_args():
     args.reproduce = False
     args.load_key = "module"
     
+    # Add missing text encoder related attributes
+    args.text_projection = "single_refiner"
+    args.text_states_dim = 4096
+    args.text_states_dim_2 = 768
+    
     return args
 
 logger.info("Initializing Hunyuan-GameCraft model...")
