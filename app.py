@@ -1,4 +1,13 @@
 import os
+
+# Get weights path from environment variable or use default
+WEIGHTS_PATH = os.environ.get("WEIGHTS_PATH", "/data/weights")
+
+# IMPORTANT: Set environment variables BEFORE importing any modules that use them
+os.environ["MODEL_BASE"] = os.path.join(WEIGHTS_PATH, "stdmodels")
+os.environ["DISABLE_SP"] = "1"
+os.environ["CPU_OFFLOAD"] = "1"
+
 import torch
 import gradio as gr
 import numpy as np
@@ -14,13 +23,6 @@ from hymm_sp.sample_inference import HunyuanVideoSampler
 from hymm_sp.data_kits.data_tools import save_videos_grid
 from hymm_sp.config import parse_args
 import argparse
-
-# Get weights path from environment variable or use default
-WEIGHTS_PATH = os.environ.get("WEIGHTS_PATH", "/data/weights")
-
-os.environ["MODEL_BASE"] = os.path.join(WEIGHTS_PATH, "stdmodels")
-os.environ["DISABLE_SP"] = "1"
-os.environ["CPU_OFFLOAD"] = "1"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
