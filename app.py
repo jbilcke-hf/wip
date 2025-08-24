@@ -95,16 +95,69 @@ def create_args():
 
 logger.info("Initializing Hunyuan-GameCraft model...")
 
-model_path = os.path.join(WEIGHTS_PATH, "gamecraft_models/mp_rank_00_model_states_distill.pt")
-if not os.path.exists(model_path):
-    logger.info("Downloading model weights from Hugging Face...")
-    os.makedirs(os.path.join(WEIGHTS_PATH, "gamecraft_models"), exist_ok=True)
-    hf_hub_download(
-        repo_id="tencent/Hunyuan-GameCraft-1.0",
-        filename="gamecraft_models/mp_rank_00_model_states_distill.pt",
-        local_dir=WEIGHTS_PATH,
-        local_dir_use_symlinks=False
-    )
+# Define all required model files
+required_files = [
+    "gamecraft_models/mp_rank_00_model_states_distill.pt",
+    "stdmodels/vae_3d/hyvae/config.json", 
+    "stdmodels/vae_3d/hyvae/pytorch_model.pt",
+]
+
+# Check and download missing files
+for file_path in required_files:
+    full_path = os.path.join(WEIGHTS_PATH, file_path)
+    if not os.path.exists(full_path):
+        logger.info(f"Downloading {file_path} from Hugging Face...")
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        try:
+            hf_hub_download(
+                repo_id="tencent/Hunyuan-GameCraft-1.0",
+                filename=file_path,
+                local_dir=WEIGHTS_PATH,
+                local_dir_use_symlinks=False
+            )
+            logger.info(f"Successfully downloaded {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to download {file_path}: {e}")
+            raise
+
+# Also check for text encoder files (download if needed)
+text_encoder_files = [
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/model-00001-of-00004.safetensors",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/model-00002-of-00004.safetensors",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/model-00003-of-00004.safetensors",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/model-00004-of-00004.safetensors",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/model.safetensors.index.json",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/config.json",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/tokenizer.json",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/tokenizer_config.json",
+    "stdmodels/llava-llama-3-8b-v1_1-transformers/special_tokens_map.json",
+    "stdmodels/openai_clip-vit-large-patch14/config.json",
+    "stdmodels/openai_clip-vit-large-patch14/pytorch_model.bin",
+    "stdmodels/openai_clip-vit-large-patch14/tokenizer.json",
+    "stdmodels/openai_clip-vit-large-patch14/tokenizer_config.json",
+    "stdmodels/openai_clip-vit-large-patch14/special_tokens_map.json",
+    "stdmodels/openai_clip-vit-large-patch14/vocab.json",
+    "stdmodels/openai_clip-vit-large-patch14/merges.txt",
+]
+
+for file_path in text_encoder_files:
+    full_path = os.path.join(WEIGHTS_PATH, file_path)
+    if not os.path.exists(full_path):
+        logger.info(f"Downloading {file_path} from Hugging Face...")
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        try:
+            hf_hub_download(
+                repo_id="tencent/Hunyuan-GameCraft-1.0",
+                filename=file_path,
+                local_dir=WEIGHTS_PATH,
+                local_dir_use_symlinks=False
+            )
+            logger.info(f"Successfully downloaded {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to download {file_path}: {e}")
+            # Continue anyway as some files might be optional
+
+logger.info("All required model files are ready")
 
 args = create_args()
 hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(
