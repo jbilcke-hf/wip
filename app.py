@@ -86,16 +86,28 @@ def create_args():
     args.reproduce = False
     args.load_key = "module"
     
-    # Add missing text encoder related attributes
+    # text encoder related attributes
     args.text_projection = "single_refiner"
     args.text_states_dim = 4096
     args.text_states_dim_2 = 768
     
-    # Add missing flow_reverse attribute (default is True based on config.py)
+    # default is True based on config.py
     args.flow_reverse = True
     
-    # Add missing flow_solver attribute (default is "euler" based on config.py)
+    # default is "euler" based on config.py
     args.flow_solver = "euler"
+    
+    # default is 256 based on config.py
+    args.rope_theta = 256
+    
+    # default for HYVideo-T/2 model
+    args.patch_size = [1, 2, 2]
+    
+    # default is True based on config.py
+    args.vae_tiling = True
+    
+    # default is 0 based on config.py
+    args.ip_cfg_scale = 0.0
     
     return args
 
