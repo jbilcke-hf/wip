@@ -6,7 +6,10 @@ WEIGHTS_PATH = os.environ.get("WEIGHTS_PATH", "/data/weights")
 # IMPORTANT: Set environment variables BEFORE importing any modules that use them
 os.environ["MODEL_BASE"] = os.path.join(WEIGHTS_PATH, "stdmodels")
 os.environ["DISABLE_SP"] = "1"
-os.environ["CPU_OFFLOAD"] = "1"
+# Configure CPU_OFFLOAD in system environment variables:
+# Set CPU_OFFLOAD=1 to enable CPU offloading (for low VRAM, but slower)
+# Set CPU_OFFLOAD=0 to disable CPU offloading (requires more VRAM, but faster)
+# os.environ["CPU_OFFLOAD"] = "1"
 
 import torch
 import gradio as gr
@@ -60,7 +63,7 @@ def create_args():
     args.use_linear_quadratic_schedule = False
     args.linear_schedule_end = 0.25
     args.use_deepcache = False
-    args.cpu_offload = True
+    args.cpu_offload = os.environ.get("CPU_OFFLOAD", "0") == "1"
     args.use_sage = True
     args.save_path = './results/'
     args.save_path_suffix = ''
