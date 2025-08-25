@@ -938,6 +938,10 @@ class HunyuanVideoGamePipeline(DiffusionPipeline):
         )
 
         target_dtype = PRECISION_TO_TYPE[self.args.precision]
+        logger.info(f"Pipeline: self.args has val_disable_autocast: {hasattr(self.args, 'val_disable_autocast')}")
+        if not hasattr(self.args, 'val_disable_autocast'):
+            logger.warning(f"Pipeline: val_disable_autocast not found in args! Setting to False as default.")
+            self.args.val_disable_autocast = False
         autocast_enabled = (target_dtype != torch.float32) and not self.args.val_disable_autocast
         vae_dtype = PRECISION_TO_TYPE[self.args.vae_precision]
         vae_autocast_enabled = (vae_dtype != torch.float32) and not self.args.val_disable_autocast

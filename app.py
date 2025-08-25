@@ -181,12 +181,15 @@ for file_path in text_encoder_files:
 logger.info("All required model files are ready")
 
 args = create_args()
+logger.info(f"Created args, val_disable_autocast: {hasattr(args, 'val_disable_autocast')} = {getattr(args, 'val_disable_autocast', 'NOT SET')}")
 hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(
     args.ckpt, 
     args=args, 
     device=torch.device("cpu")
 )
+logger.info(f"After from_pretrained, sampler.args has val_disable_autocast: {hasattr(hunyuan_video_sampler.args, 'val_disable_autocast')} = {getattr(hunyuan_video_sampler.args, 'val_disable_autocast', 'NOT SET')}")
 args = hunyuan_video_sampler.args
+logger.info(f"After reassigning args, val_disable_autocast: {hasattr(args, 'val_disable_autocast')} = {getattr(args, 'val_disable_autocast', 'NOT SET')}")
 
 if args.cpu_offload:
     from diffusers.hooks import apply_group_offloading
@@ -289,6 +292,9 @@ def generate_video(
             
             progress(0.3 + (0.6 * idx / len(action_list)), 
                     desc=f"Generating segment {idx+1}/{len(action_list)} (action: {action_id})")
+            
+            logger.info(f"Before predict call {idx}, args has val_disable_autocast: {hasattr(args, 'val_disable_autocast')} = {getattr(args, 'val_disable_autocast', 'NOT SET')}")
+            logger.info(f"hunyuan_video_sampler.args has val_disable_autocast: {hasattr(hunyuan_video_sampler.args, 'val_disable_autocast')} = {getattr(hunyuan_video_sampler.args, 'val_disable_autocast', 'NOT SET')}")
             
             outputs = hunyuan_video_sampler.predict(
                 prompt=prompt,
