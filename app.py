@@ -185,10 +185,13 @@ logger.info("All required model files are ready")
 
 args = create_args()
 logger.info(f"Created args, val_disable_autocast: {hasattr(args, 'val_disable_autocast')} = {getattr(args, 'val_disable_autocast', 'NOT SET')}")
+# Load model to CPU if offloading is enabled, otherwise load to GPU
+model_device = torch.device("cpu") if args.cpu_offload else torch.device("cuda")
+logger.info(f"Loading model to device: {model_device}")
 hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(
     args.ckpt, 
     args=args, 
-    device=torch.device("cpu")
+    device=model_device
 )
 logger.info(f"After from_pretrained, sampler.args has val_disable_autocast: {hasattr(hunyuan_video_sampler.args, 'val_disable_autocast')} = {getattr(hunyuan_video_sampler.args, 'val_disable_autocast', 'NOT SET')}")
 args = hunyuan_video_sampler.args
@@ -204,6 +207,15 @@ if args.cpu_offload:
         num_blocks_per_group=1
     )
     logger.info("Enabled CPU offloading for transformer blocks")
+else:
+    # Ensure all model components are on GPU when not using CPU offload
+    hunyuan_video_sampler.pipeline.transformer.to('cuda')
+    hunyuan_video_sampler.vae.to('cuda')
+    if hunyuan_video_sampler.text_encoder:
+        hunyuan_video_sampler.text_encoder.model.to('cuda')
+    if hunyuan_video_sampler.text_encoder_2:
+        hunyuan_video_sampler.text_encoder_2.model.to('cuda')
+    logger.info("Model components moved to GPU")
 
 logger.info("Model loaded successfully!")
 
