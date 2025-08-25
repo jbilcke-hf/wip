@@ -91,6 +91,12 @@ def create_args():
     args.text_states_dim = 4096
     args.text_states_dim_2 = 768
     
+    # Add missing flow_reverse attribute (default is True based on config.py)
+    args.flow_reverse = True
+    
+    # Add missing flow_solver attribute (default is "euler" based on config.py)
+    args.flow_solver = "euler"
+    
     return args
 
 logger.info("Initializing Hunyuan-GameCraft model...")
