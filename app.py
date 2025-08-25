@@ -109,6 +109,9 @@ def create_args():
     # default is 0 based on config.py
     args.ip_cfg_scale = 0.0
     
+    # val_disable_autocast is needed by the pipeline
+    args.val_disable_autocast = False
+    
     return args
 
 logger.info("Initializing Hunyuan-GameCraft model...")
