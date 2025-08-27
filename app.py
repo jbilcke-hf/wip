@@ -30,6 +30,31 @@ import argparse
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+def detect_gpu_supports_fp8():
+    """Detect if the current GPU supports FP8 operations."""
+    if not torch.cuda.is_available():
+        return False
+    
+    try:
+        # Get compute capability
+        compute_capability = torch.cuda.get_device_capability()
+        major, minor = compute_capability
+        
+        # Get GPU name for logging
+        gpu_name = torch.cuda.get_device_name()
+        
+        # FP8 with fp8e4m3fn (fp8e4nv) requires compute capability >= 9.0 (H100, H200)
+        # A100 has compute capability 8.0 and doesn't support this FP8 variant
+        supports_fp8 = major >= 9
+        
+        logger.info(f"GPU detected: {gpu_name} (compute capability {major}.{minor})")
+        logger.info(f"FP8 support: {'Enabled' if supports_fp8 else 'Disabled (requires compute capability >= 9.0)'}")
+        
+        return supports_fp8
+    except Exception as e:
+        logger.warning(f"Could not detect GPU capabilities: {e}. Disabling FP8.")
+        return False
+
 class CropResize:
     def __init__(self, size=(704, 1216)):
         self.target_h, self.target_w = size  
@@ -57,7 +82,7 @@ def create_args():
     args.image_start = True
     args.seed = None
     args.infer_steps = 8
-    args.use_fp8 = True
+    args.use_fp8 = detect_gpu_supports_fp8()  # Auto-detect FP8 support based on GPU
     args.flow_shift_eval_video = 5.0
     args.sample_n_frames = 33
     args.num_images = 1
