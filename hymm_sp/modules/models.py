@@ -561,6 +561,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         logger.info(f"Model forward - img shape: {img.shape}, latent_len: {latent_len}")
         if camera_condition is not None:
             logger.info(f"Camera condition shape: {camera_condition.shape}")
+        if freqs_cos is not None:
+            logger.info(f"RoPE freqs_cos shape in model: {freqs_cos.shape}")
+            logger.info(f"RoPE freqs_sin shape in model: {freqs_sin.shape}")
         
         
         # Embed image and text.
@@ -656,6 +659,12 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         # img = torch.cat([ref_latents, img], dim=-2) # t c
         txt_seq_len = txt.shape[1]
         img_seq_len = img.shape[1]
+        
+        # More debug logging
+        logger.info(f"After embedding - img shape: {img.shape}, txt shape: {txt.shape}")
+        logger.info(f"txt_seq_len: {txt_seq_len}, img_seq_len: {img_seq_len}")
+        logger.info(f"Total sequence length: {txt_seq_len + img_seq_len}")
+        
         # Compute 'self-attention mask'.
 
         cu_seqlens_q = get_cu_seqlens(text_mask, img_seq_len)
