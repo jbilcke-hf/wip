@@ -568,13 +568,37 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         
         if camera_condition is not None:
 
-            if latent_len == 18:
+            # Handle specific known latent lengths for common frame counts
+            if latent_len == 18:  # For 66 frames (video continuation)
                 camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)), \
                                             self.camera_net(camera_condition)], dim=1)
-            elif latent_len == 9:
+            elif latent_len == 9:  # For 34 frames (default 33 frame mode)
                 camera_latents = self.camera_net(camera_condition)
-            elif latent_len == 10:
+            elif latent_len == 10:  # For 38 frames
                 camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)[:,0:4,:,:,:]), \
+                                            self.camera_net(camera_condition)], dim=1)
+            elif latent_len == 2:  # For 6 frames (5 frame mode)
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 3:  # For 10 frames (9 frame mode)
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 4:  # For 14 frames (13 frame mode)
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 5:  # For 18 frames (17 frame mode)
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 6:  # For 22 frames (21 frame mode) 
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 7:  # For 26 frames (25 frame mode)
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 8:  # For 30 frames (29 frame mode)
+                camera_latents = self.camera_net(camera_condition)
+            elif latent_len == 11:  # For 42 frames (41 frame mode)
+                camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)[:,0:5,:,:,:]), \
+                                            self.camera_net(camera_condition)], dim=1)
+            elif latent_len == 12:  # For 46 frames (45 frame mode)
+                camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)[:,0:6,:,:,:]), \
+                                            self.camera_net(camera_condition)], dim=1)
+            elif latent_len == 13:  # For 50 frames (49 frame mode)
+                camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)[:,0:7,:,:,:]), \
                                             self.camera_net(camera_condition)], dim=1)
             else:
                 # Fallback for other latent_len values
@@ -588,13 +612,36 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                                                 self.camera_net(camera_condition)], dim=1)
                 # Adjust temporal dimension if needed
                 if camera_latents.shape[1] != latent_len:
-                    # Interpolate to match the required latent_len
-                    camera_latents = torch.nn.functional.interpolate(
-                        camera_latents.permute(0, 2, 1, 3, 4),  # B, T, C, H, W -> B, C, T, H, W
-                        size=(latent_len, camera_latents.shape[3], camera_latents.shape[4]),
-                        mode='trilinear',
-                        align_corners=False
-                    ).permute(0, 2, 1, 3, 4)  # B, C, T, H, W -> B, T, C, H, W
+                    # Check tensor dimensions before interpolation
+                    if len(camera_latents.shape) == 5:  # B, T, C, H, W
+                        # Interpolate to match the required latent_len
+                        camera_latents = torch.nn.functional.interpolate(
+                            camera_latents.permute(0, 2, 1, 3, 4),  # B, T, C, H, W -> B, C, T, H, W
+                            size=(latent_len, camera_latents.shape[3], camera_latents.shape[4]),
+                            mode='trilinear',
+                            align_corners=False
+                        ).permute(0, 2, 1, 3, 4)  # B, C, T, H, W -> B, T, C, H, W
+                    elif len(camera_latents.shape) == 3:  # B, T, C (flattened spatial dims)
+                        # For flattened tensors, interpolate only the temporal dimension
+                        camera_latents = torch.nn.functional.interpolate(
+                            camera_latents.permute(0, 2, 1),  # B, T, C -> B, C, T
+                            size=latent_len,
+                            mode='linear',
+                            align_corners=False
+                        ).permute(0, 2, 1)  # B, C, T -> B, T, C
+                    else:
+                        # If dimensions don't match expected patterns, try to pad/truncate
+                        current_len = camera_latents.shape[1]
+                        if current_len < latent_len:
+                            # Pad with zeros
+                            pad_len = latent_len - current_len
+                            padding_shape = list(camera_latents.shape)
+                            padding_shape[1] = pad_len
+                            padding = torch.zeros(padding_shape, device=camera_latents.device, dtype=camera_latents.dtype)
+                            camera_latents = torch.cat([camera_latents, padding], dim=1)
+                        else:
+                            # Truncate
+                            camera_latents = camera_latents[:, :latent_len]
             img = img + camera_latents
         
         if CPU_OFFLOAD: torch.cuda.empty_cache()
