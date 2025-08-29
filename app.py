@@ -21,6 +21,7 @@ import torchvision.transforms as transforms
 from loguru import logger
 from huggingface_hub import hf_hub_download
 import tempfile
+import spaces
 
 from hymm_sp.sample_inference import HunyuanVideoSampler
 from hymm_sp.data_kits.data_tools import save_videos_grid
@@ -88,7 +89,7 @@ def create_args():
     args.use_linear_quadratic_schedule = False
     args.linear_schedule_end = 0.25
     args.use_deepcache = False
-    args.cpu_offload = os.environ.get("CPU_OFFLOAD", "0") == "1"
+    args.cpu_offload = False  # Always False for ZeroGPU compatibility
     args.use_sage = True
     args.save_path = './results/'
     args.save_path_suffix = ''
@@ -141,8 +142,6 @@ def create_args():
     args.val_disable_autocast = False
     
     return args
-
-logger.info("Initializing Hunyuan-GameCraft model...")
 
 # Define all required model files
 required_files = [
@@ -207,11 +206,13 @@ for file_path in text_encoder_files:
             # Continue anyway as some files might be optional
 
 logger.info("All required model files are ready")
+logger.info("Initializing Hunyuan-GameCraft model...")
 
 args = create_args()
 logger.info(f"Created args, val_disable_autocast: {hasattr(args, 'val_disable_autocast')} = {getattr(args, 'val_disable_autocast', 'NOT SET')}")
-# Load model to CPU if offloading is enabled, otherwise load to GPU
-model_device = torch.device("cpu") if args.cpu_offload else torch.device("cuda")
+
+# For ZeroGPU, always load model to CPU initially (it will be moved to GPU during inference)
+model_device = torch.device("cpu")
 logger.info(f"Loading model to device: {model_device}")
 hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(
     args.ckpt, 
@@ -222,28 +223,10 @@ logger.info(f"After from_pretrained, sampler.args has val_disable_autocast: {has
 args = hunyuan_video_sampler.args
 logger.info(f"After reassigning args, val_disable_autocast: {hasattr(args, 'val_disable_autocast')} = {getattr(args, 'val_disable_autocast', 'NOT SET')}")
 
-if args.cpu_offload:
-    from diffusers.hooks import apply_group_offloading
-    onload_device = torch.device("cuda")
-    apply_group_offloading(
-        hunyuan_video_sampler.pipeline.transformer, 
-        onload_device=onload_device, 
-        offload_type="block_level", 
-        num_blocks_per_group=1
-    )
-    logger.info("Enabled CPU offloading for transformer blocks")
-else:
-    # Ensure all model components are on GPU when not using CPU offload
-    hunyuan_video_sampler.pipeline.transformer.to('cuda')
-    hunyuan_video_sampler.vae.to('cuda')
-    if hunyuan_video_sampler.text_encoder:
-        hunyuan_video_sampler.text_encoder.model.to('cuda')
-    if hunyuan_video_sampler.text_encoder_2:
-        hunyuan_video_sampler.text_encoder_2.model.to('cuda')
-    logger.info("Model components moved to GPU")
+# Don't apply CPU offloading for ZeroGPU - the model stays on CPU until needed
+logger.info("Model loaded successfully on CPU, will be moved to GPU during inference")
 
-logger.info("Model loaded successfully!")
-
+@spaces.GPU(duration=120)
 def generate_video(
     input_image,
     prompt,
@@ -260,6 +243,16 @@ def generate_video(
         
         if input_image is None:
             return None, "Please upload an image first!"
+        
+        # Move model components to GPU for ZeroGPU inference
+        logger.info("Moving model components to GPU...")
+        hunyuan_video_sampler.pipeline.transformer.to('cuda')
+        hunyuan_video_sampler.vae.to('cuda')
+        if hunyuan_video_sampler.text_encoder:
+            hunyuan_video_sampler.text_encoder.model.to('cuda')
+        if hunyuan_video_sampler.text_encoder_2:
+            hunyuan_video_sampler.text_encoder_2.model.to('cuda')
+        logger.info("Model components moved to GPU")
         
         action_list = action_sequence.lower().replace(" ", "").split(",") if action_sequence else ["w"]
         speed_list = [float(s.strip()) for s in action_speeds.split(",")] if action_speeds else [0.2]
@@ -299,10 +292,6 @@ def generate_video(
         progress(0.2, desc="Encoding image...")
         
         with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=True):
-            if args.cpu_offload:
-                hunyuan_video_sampler.vae.quant_conv.to('cuda')
-                hunyuan_video_sampler.vae.encoder.to('cuda')
-            
             hunyuan_video_sampler.pipeline.vae.enable_tiling()
             
             raw_last_latents = hunyuan_video_sampler.vae.encode(
@@ -312,9 +301,6 @@ def generate_video(
             raw_ref_latents = raw_last_latents.clone()
             
             hunyuan_video_sampler.pipeline.vae.disable_tiling()
-            if args.cpu_offload:
-                hunyuan_video_sampler.vae.quant_conv.to('cpu')
-                hunyuan_video_sampler.vae.encoder.to('cpu')
         
         ref_images = [raw_ref_image]
         last_latents = raw_last_latents
@@ -354,7 +340,7 @@ def generate_video(
                 use_linear_quadratic_schedule=args.use_linear_quadratic_schedule,
                 linear_schedule_end=args.linear_schedule_end,
                 use_deepcache=args.use_deepcache,
-                cpu_offload=args.cpu_offload,
+                cpu_offload=False,  # Always False for ZeroGPU
                 ref_images=ref_images,
                 output_dir=None,
                 return_latents=True,
