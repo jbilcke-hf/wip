@@ -610,14 +610,31 @@ class HunyuanVideoSampler(Inference):
         # ---------------------------------
 
         concat_dict = {'mode': 'timecat', 'bias': -1} 
-        # Adjust RoPE embeddings based on target_length
-        # Add 3 for positional encoding alignment
-        if is_image:
-            rope_length = target_length + 3  # e.g., 18+3=21 for 17 frames, 34+3=37 for 33 frames
-            freqs_cos, freqs_sin = self.get_rotary_pos_embed(rope_length, target_height, target_width)
+        # Calculate RoPE embeddings based on actual latent dimensions
+        # For non-standard frame counts, we need to calculate the correct rope_length
+        if '884' in self.args.vae:
+            # Calculate actual latent temporal dimension
+            if target_length == 34:  # Standard 33 frame mode
+                latent_t = 9
+                rope_length = 37  # Standard for 34 frames
+            elif target_length == 66:  # Video continuation
+                latent_t = 17
+                rope_length = 69  # Standard for 66 frames
+            else:
+                # For other frame counts, calculate based on VAE compression
+                # Using the standard formula: (frames-1)//4+1
+                latent_t = (target_length - 1) // 4 + 1
+                # RoPE length should give us the same latent_t when processed
+                # We need rope_length such that (rope_length-1)//4+1 = latent_t
+                # Solving: rope_length = (latent_t - 1) * 4 + 1
+                rope_length = (latent_t - 1) * 4 + 1
+                # Add 3 for alignment if needed
+                if rope_length < target_length:
+                    rope_length = target_length + 3
         else:
-            rope_length = target_length + 3  # e.g., 34+3=37 for 17 frames, 66+3=69 for 33 frames
-            freqs_cos, freqs_sin = self.get_rotary_pos_embed(rope_length, target_height, target_width)
+            rope_length = target_length + 3
+            
+        freqs_cos, freqs_sin = self.get_rotary_pos_embed(rope_length, target_height, target_width)
         
         n_tokens = freqs_cos.shape[0]
         
