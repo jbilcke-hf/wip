@@ -84,7 +84,7 @@ def create_args():
     args.infer_steps = 8
     args.use_fp8 = detect_gpu_supports_fp8()  # Auto-detect FP8 support based on GPU
     args.flow_shift_eval_video = 5.0
-    args.sample_n_frames = 33
+    args.sample_n_frames = 33  # Default, will be overridden by user selection
     args.num_images = 1
     args.use_linear_quadratic_schedule = False
     args.linear_schedule_end = 0.25
@@ -232,6 +232,7 @@ def generate_video(
     prompt,
     action_sequence,
     action_speeds,
+    num_frames,
     negative_prompt,
     seed,
     cfg_scale,
@@ -331,7 +332,7 @@ def generate_video(
                 seed=seed,
                 last_latents=last_latents,
                 ref_latents=ref_latents,
-                video_length=args.sample_n_frames,
+                video_length=num_frames,
                 guidance_scale=cfg_scale,
                 num_images_per_prompt=1,
                 negative_prompt=negative_prompt,
@@ -414,6 +415,13 @@ with gr.Blocks(title="Hunyuan-GameCraft") as demo:
                 )
             
             with gr.Accordion("Advanced Settings", open=False):
+                num_frames = gr.Dropdown(
+                    label="Frames per Action",
+                    choices=[5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49],
+                    value=17,
+                    info="Number of frames per action. Lower values = faster/choppier, higher = slower/smoother. 33 is the trained default."
+                )
+                
                 negative_prompt = gr.Textbox(
                     label="Negative Prompt",
                     value="overexposed, low quality, deformation, a poor composition, bad hands, bad teeth, bad eyes, bad limbs, distortion, blurring, text, subtitles, static, picture, black border.",
@@ -459,7 +467,9 @@ with gr.Blocks(title="Hunyuan-GameCraft") as demo:
     
     gr.Markdown("""
     ### Tips:
-    - Each action generates 33 frames (1.3 seconds at 25 FPS)
+    - Default: 17 frames per action (0.68 seconds at 25 FPS) - uses ~48% less memory
+    - Trained value: 33 frames (1.32 seconds) - best quality but more memory intensive
+    - Ultra-fast options: 5, 9, 13 frames for rapid prototyping (may have artifacts)
     - The distilled model is optimized for speed with 8 inference steps
     - Use FP8 optimization for better memory efficiency
     - Minimum GPU memory: 24GB VRAM
@@ -472,6 +482,7 @@ with gr.Blocks(title="Hunyuan-GameCraft") as demo:
             prompt,
             action_sequence,
             action_speeds,
+            num_frames,
             negative_prompt,
             seed,
             cfg_scale,
@@ -486,10 +497,11 @@ with gr.Blocks(title="Hunyuan-GameCraft") as demo:
                 "asset/village.png",
                 "A charming medieval village with cobblestone streets, thatched-roof houses, and vibrant flower gardens under a bright blue sky.",
                 "w, a, d, s",
-                "0.2, 0.2, 0.2, 0.2"
+                "0.2, 0.2, 0.2, 0.2",
+                17
             ]
         ],
-        inputs=[input_image, prompt, action_sequence, action_speeds],
+        inputs=[input_image, prompt, action_sequence, action_speeds, num_frames],
         label="Example"
     )
 

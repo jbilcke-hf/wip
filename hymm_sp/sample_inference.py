@@ -513,18 +513,19 @@ class HunyuanVideoSampler(Inference):
                                                                           start_index, 
                                                                           step)
         else:
-            pose = ActionToPoseFromID(action_id, value=action_speed)
+            pose = ActionToPoseFromID(action_id, value=action_speed, duration=video_length)
             pose_embeds, uncond_pose_embeds, poses = GetPoseEmbedsFromPoses(pose, 
                                                                             target_height, 
                                                                             target_width, 
-                                                                            33, 
+                                                                            video_length,  # Use the passed video_length instead of hardcoded 33
                                                                             kwargs.get("flip", False), 
                                                                             0)
 
+        # Adjust target_length based on video_length and whether it's image-to-video or video-to-video
         if is_image:
-            target_length = 34
+            target_length = video_length + 1  # Add 1 for the initial frame
         else:
-            target_length = 66
+            target_length = video_length * 2  # Double for video-to-video continuation
             
         out_dict['frame'] = target_length
         # print("pose embeds: ", pose_embeds.shape, uncond_pose_embeds.shape)
@@ -609,10 +610,14 @@ class HunyuanVideoSampler(Inference):
         # ---------------------------------
 
         concat_dict = {'mode': 'timecat', 'bias': -1} 
+        # Adjust RoPE embeddings based on target_length
+        # Add 3 for positional encoding alignment
         if is_image:
-            freqs_cos, freqs_sin = self.get_rotary_pos_embed(37, target_height, target_width)
+            rope_length = target_length + 3  # e.g., 18+3=21 for 17 frames, 34+3=37 for 33 frames
+            freqs_cos, freqs_sin = self.get_rotary_pos_embed(rope_length, target_height, target_width)
         else:
-            freqs_cos, freqs_sin = self.get_rotary_pos_embed(69, target_height, target_width)
+            rope_length = target_length + 3  # e.g., 34+3=37 for 17 frames, 66+3=69 for 33 frames
+            freqs_cos, freqs_sin = self.get_rotary_pos_embed(rope_length, target_height, target_width)
         
         n_tokens = freqs_cos.shape[0]
         

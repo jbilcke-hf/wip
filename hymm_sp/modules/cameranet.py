@@ -146,8 +146,9 @@ class CameraNet(ModelMixin):
         
         # print(x.shape)
         # raise Exception
-        # Handle special frame counts (66 or 34)
-        if x.shape[-1] == 66 or x.shape[-1] == 34:
+        # Handle special frame counts for video continuation (even numbers like 34, 42, 50, 58, 66, etc.)
+        # These are double the base frame count (17*2, 21*2, 25*2, 29*2, 33*2, etc.)
+        if x.shape[-1] % 2 == 0 and x.shape[-1] >= 34:
             x_len = x.shape[-1]
             # Process first segment: keep first frame, pool remaining
             x_clip1 = x[...,:x_len//2]
