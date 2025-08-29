@@ -133,36 +133,77 @@ This compression strategy:
 2. **Pools temporal information**: Averages remaining frames
 3. **Maintains continuity**: Ensures smooth transitions
 
-## Why Can't We Easily Change to 18 Frames?
+## Case Study: Using 17 Frames Instead of 33
 
-Changing from 33 to 18 frames per chunk is problematic for multiple reasons:
+While the model is trained on 33-frame chunks, we can theoretically adapt it to use 17 frames, which is exactly half the duration and maintains VAE compatibility:
 
-### 1. Training-Time Fixed Parameters
-According to the paper:
-- The model was trained with **33-frame chunks at 25 FPS**
-- The hybrid history conditioning ratios were optimized for 33-frame segments
-- The entire dataset was annotated and partitioned into 6-second clips containing multiple 33-frame chunks
+### 1. Why 17 Frames Works with VAE
 
-### 2. VAE Constraints
-- **884 VAE**: Requires (n-1) or (n-2) divisible by 4
-  - 18 frames: (18-1)/4 = 4.25 ❌ (not integer)
-  - Would need 17 or 21 frames for proper compression
-- **888 VAE**: Requires (n-1) divisible by 8
-  - 18 frames: (18-1)/8 = 2.125 ❌ (not integer)
-  - Would need 17 or 25 frames instead
+17 frames is actually compatible with both VAE architectures:
 
-### 3. Hardcoded Dependencies
-Multiple components assume 33-frame chunks:
-- **sample_inference.py**: Lines 525, 527, 613, 615 hardcode 34/37/66/69
-- **cameranet.py**: Line 150 specifically checks for 34 or 66 frames
-- **ActionToPoseFromID**: Hardcoded duration=33 for camera trajectory generation
-- **app.py**: sample_n_frames=33 is fixed
+- **884 VAE** (4:1 temporal compression):
+  - Formula: (17-1)/4 + 1 = 5 latent frames ✓
+  - Clean division ensures proper encoding/decoding
+  
+- **888 VAE** (8:1 temporal compression):
+  - Formula: (17-1)/8 + 1 = 3 latent frames ✓
+  - Also divides cleanly for proper compression
 
-### 4. Model Architecture Assumptions
-- **MM-DiT backbone**: Trained with specific sequence lengths
-- **Rotary Position Embeddings**: Optimized for 37/69 frame sequences
-- **Camera encoder**: Designed for 33-frame action sequences
-- **Attention patterns**: Expect these specific sequence lengths
+### 2. Required Code Modifications
+
+To implement 17-frame generation, you would need to update:
+
+#### a. Core Frame Configuration
+- **app.py**: Change `args.sample_n_frames = 17`
+- **ActionToPoseFromID**: Update `duration=17` parameter
+- **sample_inference.py**: Adjust target_length calculations:
+  ```python
+  if is_image:
+      target_length = 18  # 17 generated + 1 initial
+  else:
+      target_length = 34  # 2 × 17 for video continuation
+  ```
+
+#### b. RoPE Embeddings
+- For image-to-video: Use 21 instead of 37 (18 + 3 for alignment)
+- For video-to-video: Use 37 instead of 69 (34 + 3 for alignment)
+
+#### c. CameraNet Compression
+Update the frame count checks in `cameranet.py`:
+```python
+if x.shape[-1] == 34 or x.shape[-1] == 18:  # Support both 33 and 17 frame modes
+    # Adjust compression logic for shorter sequences
+```
+
+### 3. Trade-offs and Considerations
+
+**Advantages of 17 frames:**
+- **Reduced memory usage**: ~48% less VRAM required
+- **Faster generation**: Shorter sequences process quicker
+- **More responsive**: Actions complete in 0.68 seconds vs 1.32 seconds
+
+**Disadvantages:**
+- **Quality degradation**: Model wasn't trained on 17-frame chunks
+- **Choppy motion**: Less temporal information for smooth transitions
+- **Action granularity**: Shorter actions may feel abrupt
+- **Potential artifacts**: VAE and attention patterns optimized for 33 frames
+
+### 4. Why Other Frame Counts Are Problematic
+
+Not all frame counts work with the VAE constraints:
+- **18 frames**: ❌ (18-1)/4 = 4.25 (not integer for 884 VAE)
+- **19 frames**: ❌ (19-1)/4 = 4.5 (not integer)
+- **20 frames**: ❌ (20-1)/4 = 4.75 (not integer)
+- **21 frames**: ✓ Works with 884 VAE (6 latent frames)
+- **25 frames**: ✓ Works with both VAEs (7 and 4 latent frames)
+
+### 5. Implementation Note
+
+While technically possible, using 17 frames would require:
+1. **Extensive testing**: Verify quality and temporal consistency
+2. **Possible fine-tuning**: The model may need adaptation for optimal results
+3. **Adjustment of action speeds**: Camera movements calibrated for 33 frames
+4. **Modified training strategy**: If fine-tuning, adjust hybrid history ratios
 
 ## Recommendations for Frame Count Modification
 
