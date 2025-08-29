@@ -576,6 +576,25 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             elif latent_len == 10:
                 camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)[:,0:4,:,:,:]), \
                                             self.camera_net(camera_condition)], dim=1)
+            else:
+                # Fallback for other latent_len values
+                # Use adaptive approach based on whether latent_len is closer to 9 or 18
+                if latent_len <= 12:
+                    # For smaller sequences, use single camera_net pass
+                    camera_latents = self.camera_net(camera_condition)
+                else:
+                    # For larger sequences, concatenate with zeros like the 18 case
+                    camera_latents = torch.cat([self.camera_net(torch.zeros_like(camera_condition)), \
+                                                self.camera_net(camera_condition)], dim=1)
+                # Adjust temporal dimension if needed
+                if camera_latents.shape[1] != latent_len:
+                    # Interpolate to match the required latent_len
+                    camera_latents = torch.nn.functional.interpolate(
+                        camera_latents.permute(0, 2, 1, 3, 4),  # B, T, C, H, W -> B, C, T, H, W
+                        size=(latent_len, camera_latents.shape[3], camera_latents.shape[4]),
+                        mode='trilinear',
+                        align_corners=False
+                    ).permute(0, 2, 1, 3, 4)  # B, C, T, H, W -> B, T, C, H, W
             img = img + camera_latents
         
         if CPU_OFFLOAD: torch.cuda.empty_cache()
