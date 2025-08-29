@@ -612,29 +612,63 @@ class HunyuanVideoSampler(Inference):
         concat_dict = {'mode': 'timecat', 'bias': -1} 
         # Calculate RoPE embeddings based on actual latent dimensions
         # For non-standard frame counts, we need to calculate the correct rope_length
+        
+        # Debug logging
+        self.logger.info(f"RoPE calculation - target_length: {target_length}, is_image: {is_image}")
+        self.logger.info(f"VAE type: {self.args.vae}")
+        
         if '884' in self.args.vae:
-            # Calculate actual latent temporal dimension
+            # Calculate expected latent temporal dimension
+            expected_latent_t = (target_length - 1) // 4 + 1
+            self.logger.info(f"Expected latent temporal dimension: {expected_latent_t}")
+            
+            # Standard known configurations
             if target_length == 34:  # Standard 33 frame mode
-                latent_t = 9
-                rope_length = 37  # Standard for 34 frames
+                rope_length = 37  # Well-tested value
             elif target_length == 66:  # Video continuation
-                latent_t = 17
-                rope_length = 69  # Standard for 66 frames
+                rope_length = 69  # Well-tested value
+            elif target_length == 18:  # 17 frame mode
+                # For 18 frames: latent will be 5 (since (18-1)//4+1 = 5)
+                # We need RoPE for 5 latent frames
+                rope_length = 17  # This gives (17-1)//4+1 = 5 which matches
+            elif target_length == 10:  # 9 frame mode
+                rope_length = 9   # This gives (9-1)//4+1 = 3
+            elif target_length == 14:  # 13 frame mode
+                rope_length = 13  # This gives (13-1)//4+1 = 4
+            elif target_length == 22:  # 21 frame mode
+                rope_length = 21  # This gives (21-1)//4+1 = 6
+            elif target_length == 26:  # 25 frame mode
+                rope_length = 25  # This gives (25-1)//4+1 = 7
+            elif target_length == 30:  # 29 frame mode
+                rope_length = 29  # This gives (29-1)//4+1 = 8
+            elif target_length == 38:  # 37 frame mode
+                rope_length = 37  # This gives (37-1)//4+1 = 10
+            elif target_length == 42:  # 41 frame mode
+                rope_length = 41  # This gives (41-1)//4+1 = 11
+            elif target_length == 46:  # 45 frame mode
+                rope_length = 45  # This gives (45-1)//4+1 = 12
+            elif target_length == 50:  # 49 frame mode
+                rope_length = 49  # This gives (49-1)//4+1 = 13
+            elif target_length == 6:   # 5 frame mode
+                rope_length = 5   # This gives (5-1)//4+1 = 2
             else:
-                # For other frame counts, calculate based on VAE compression
-                # Using the standard formula: (frames-1)//4+1
+                # Fallback: calculate based on VAE compression
                 latent_t = (target_length - 1) // 4 + 1
-                # RoPE length should give us the same latent_t when processed
-                # We need rope_length such that (rope_length-1)//4+1 = latent_t
-                # Solving: rope_length = (latent_t - 1) * 4 + 1
                 rope_length = (latent_t - 1) * 4 + 1
-                # Add 3 for alignment if needed
-                if rope_length < target_length:
-                    rope_length = target_length + 3
+                self.logger.warning(f"Using fallback RoPE calculation for target_length={target_length}, rope_length={rope_length}")
         else:
             rope_length = target_length + 3
             
+        self.logger.info(f"Selected rope_length: {rope_length}")
+        
+        # Calculate what latent_t this rope_length will produce
+        if '884' in self.args.vae:
+            resulting_latent_t = (rope_length - 1) // 4 + 1
+            self.logger.info(f"This rope_length will produce latent_t: {resulting_latent_t}")
+            
         freqs_cos, freqs_sin = self.get_rotary_pos_embed(rope_length, target_height, target_width)
+        
+        self.logger.info(f"RoPE freqs_cos shape: {freqs_cos.shape}, freqs_sin shape: {freqs_sin.shape}")
         
         n_tokens = freqs_cos.shape[0]
         

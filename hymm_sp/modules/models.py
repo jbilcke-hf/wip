@@ -555,6 +555,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         assert camera_condition is not None, print("plucker_embedding is not provided")
         latent_len = img.shape[2]
         
+        # Debug logging for frame count issues
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Model forward - img shape: {img.shape}, latent_len: {latent_len}")
+        if camera_condition is not None:
+            logger.info(f"Camera condition shape: {camera_condition.shape}")
+        
         
         # Embed image and text.
         img = self.img_in(img)
